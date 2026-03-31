@@ -7,6 +7,10 @@
 #include <string>
 #include <cmath>
 #include <fstream>
+#include <thread>
+#include <vector>
+#include <mutex>
+#include <atomic>
 #include "timer.hpp"
 
 /**
@@ -20,7 +24,7 @@
  * @tparam desp_var Variación de los elementos respecto a desp_medio.
  * @tparam f_name Nombre del fichero de salida
  */
-void print_Results(std::string structDat, int N, double t_ins, double t_ext, int inversiones, double desp_medio, double desp_var, std::string f_name){
+void print_Results(std::string structDat, int N, double t_ins, double t_ext, int inversiones, double desp_medio, double desp_var, std::string f_name, int nThreads){
     
     std::ifstream check_file(f_name);
     bool escribir_cabecera = false;
@@ -37,6 +41,7 @@ void print_Results(std::string structDat, int N, double t_ins, double t_ext, int
     if (archivo.is_open()) {
         if (escribir_cabecera) {
             archivo << "nombre_estructura;"
+                    << "numero_threads;"
                     << "numero_elementos;"
                     << "tiempo_insercion;"
                     << "tiempo_extraccion;"
@@ -45,7 +50,8 @@ void print_Results(std::string structDat, int N, double t_ins, double t_ext, int
                     << "desviacion" << std::endl;
         }
 
-        archivo << structDat << ";" 
+        archivo << structDat << ";"
+                << nThreads << ";" 
                 << N << ";" 
                 << t_ins << ";" 
                 << t_ext << ";" 
@@ -66,10 +72,9 @@ void print_Results(std::string structDat, int N, double t_ins, double t_ext, int
  * @tparam VER_PRIMEROS_N Numero de elementos maximos a mostrar.
  */
 template <class Structure>
-void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::string structDat, std::string n_fich) {
+void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::string structDat, std::string n_fich, int NUM_THREADS) {
     Timer timer;
     std::vector<int> data(NUM_ELEMENTOS);
-    using T = typename Structure::value_type;
 
     // Asigna los valores de 1-NUM_ELEMENTOS
     std::iota(data.begin(), data.end(), 1);
@@ -79,6 +84,12 @@ void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::st
     std::mt19937 g(rd());
     std::shuffle(data.begin(), data.end(), g);
 
+    auto worker_insert = [&](int start, int end) {
+        for (int i = start; i < end; ++i) {
+            ds.push(data[i]);
+        }
+    };
+
     std::cout << "Iniciando pruebas..." << std::endl;
     std::cout << "Estructura de datos: " << structDat << std::endl;
     std::cout << "Numero de elementos: " << NUM_ELEMENTOS << std::endl;
@@ -86,19 +97,55 @@ void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::st
     std::cout << "Fichero de salida: " << n_fich << std::endl;
 
     // --- TEST DE INSERCIÓN ---
+
+    // Concurrencia
+    std::vector<std::thread> threads;
+    int chunk = NUM_ELEMENTOS / NUM_THREADS;
+
     timer.start();
-    for (const auto& val : data) {
-        ds.push(val);
+    for (int i = 0; i < NUM_THREADS; ++i) {
+        threads.emplace_back(worker_insert, i * chunk, (i == NUM_THREADS - 1) ? NUM_ELEMENTOS : (i + 1) * chunk);
     }
+    for (auto& t : threads) t.join();
     double insert_time = timer.stop();
 
     // --- TEST DE EXTRACCIÓN ---
-    std::vector<T> extracted;
+    threads.clear();
+    
+    // 1. Pre-reservamos memoria para evitar reasignaciones
+    std::vector<typename Structure::value_type> extracted(NUM_ELEMENTOS, 0); 
+    
+    // 2. Índice global atómico para que los hilos no se pisen al escribir
+    std::atomic<int> extract_idx{0}; 
+
+    auto worker_extract = [&]() {
+        while (true) {
+            if (ds.empty()) break; 
+            
+            auto val = ds.top();
+            ds.pop();
+
+            if (val != 0) {
+                // 3. Obtenemos un ticket único e incrementamos el índice instantáneamente
+                int pos = extract_idx.fetch_add(1, std::memory_order_relaxed);
+                
+                // 4. Escribimos directamente en nuestra posición asegurada
+                if (pos < NUM_ELEMENTOS) {
+                    extracted[pos] = val;
+                }
+            }
+        }
+    };
+
     timer.start();
-    while (!ds.empty()) {
-        extracted.push_back(ds.top());
-        ds.pop();
+    for (int i = 0; i < NUM_THREADS; ++i) {
+        threads.emplace_back(worker_extract);
     }
+    for (auto& t : threads) t.join();
+    
+    // Recortamos el vector en caso de que hubiese ceros fantasma que se ignoraron
+    extracted.resize(std::min((int)extract_idx.load(), NUM_ELEMENTOS));
+    
     double extract_time = timer.stop();
 
     // --- CÁLCULO DE PRECISIÓN ---
@@ -153,7 +200,7 @@ void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::st
     }
     std::cout << "\n------------------------" << std::endl;
 
-    print_Results(structDat, NUM_ELEMENTOS, insert_time, extract_time, inversions, error_medio, desviacion, n_fich);
+    print_Results(structDat, NUM_ELEMENTOS, insert_time, extract_time, inversions, error_medio, desviacion, n_fich, NUM_THREADS);
 }
 
 #endif
