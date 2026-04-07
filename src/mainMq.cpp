@@ -7,7 +7,7 @@
 #include <random>
 #include <string>
 #include "benchmark.hpp"
-#include "../external/relaxedPriorityQueues_874280/src/multiqueue/multiqueue.hpp" // Mi Multiqueue
+#include "../external/relaxedPriorityQueues_874280/src/multiqueue/multiqueue.hpp"
 
 // Adaptador para la Estructura de Datos que sea
 template <typename T, typename Compare = std::less<T>>
@@ -53,11 +53,12 @@ public:
 };
 
 int main() {
-    const int N = 100000;
+    const int N = 5000000;
     const int VISUALIZAR = 20;
-    const std::string output = "../results_/results_mq.csv";
+    const std::string output = "../results_/results_mq8c.csv";
     const std::string name = "multiqueue_n32c2";
     const int THREADS = std::thread::hardware_concurrency();
+    //const int THREADS = 1;
 
     // Estructura de Datos
     HeapAdapter<int, std::less<int>> heapTest(THREADS*4, 2, std::less<int>());

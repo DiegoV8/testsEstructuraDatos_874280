@@ -96,9 +96,9 @@ void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::st
     std::cout << "Elementos a visualizar: " << VER_PRIMEROS_N << std::endl;
     std::cout << "Fichero de salida: " << n_fich << std::endl;
 
-    // --- TEST DE INSERCIÓN ---
-
-    // Concurrencia
+    // ==========================================
+    // 1. TEST DE INSERCIÓN (RENDIMIENTO CONCURRENTE)
+    // ==========================================
     std::vector<std::thread> threads;
     int chunk = NUM_ELEMENTOS / NUM_THREADS;
 
@@ -109,55 +109,63 @@ void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::st
     for (auto& t : threads) t.join();
     double insert_time = timer.stop();
 
-    // --- TEST DE EXTRACCIÓN ---
+    // ==========================================
+    // 2. TEST DE EXTRACCIÓN (RENDIMIENTO CONCURRENTE)
+    // ==========================================
     threads.clear();
     
-    // 1. Pre-reservamos memoria para evitar reasignaciones
-    std::vector<typename Structure::value_type> extracted(NUM_ELEMENTOS, 0); 
-    
-    // 2. Índice global atómico para que los hilos no se pisen al escribir
-    std::atomic<int> extract_idx{0}; 
-
-    auto worker_extract = [&]() {
+    // Aquí solo sacamos los elementos lo más rápido posible para medir tiempo
+    auto worker_extract_time = [&]() {
         while (true) {
             if (ds.empty()) break; 
             
-            auto val = ds.top();
+            // Hacemos el top y pop, pero desechamos el valor
+            ds.top();
             ds.pop();
-
-            if (val != 0) {
-                // 3. Obtenemos un ticket único e incrementamos el índice instantáneamente
-                int pos = extract_idx.fetch_add(1, std::memory_order_relaxed);
-                
-                // 4. Escribimos directamente en nuestra posición asegurada
-                if (pos < NUM_ELEMENTOS) {
-                    extracted[pos] = val;
-                }
-            }
         }
     };
 
     timer.start();
     for (int i = 0; i < NUM_THREADS; ++i) {
-        threads.emplace_back(worker_extract);
+        threads.emplace_back(worker_extract_time);
     }
     for (auto& t : threads) t.join();
-    
-    // Recortamos el vector en caso de que hubiese ceros fantasma que se ignoraron
-    extracted.resize(std::min((int)extract_idx.load(), NUM_ELEMENTOS));
-    
     double extract_time = timer.stop();
 
-    // --- CÁLCULO DE PRECISIÓN ---
+    // ==========================================
+    // 3. RELLENO DE DATOS (CONCURRENTE)
+    // ==========================================
+    // Volvemos a meter los datos concurrentemente para la prueba de precisión
+    threads.clear();
+    for (int i = 0; i < NUM_THREADS; ++i) {
+        threads.emplace_back(worker_insert, i * chunk, (i == NUM_THREADS - 1) ? NUM_ELEMENTOS : (i + 1) * chunk);
+    }
+    for (auto& t : threads) t.join();
+
+    // ==========================================
+    // 4. TEST DE PRECISIÓN (EXTRACCIÓN SECUENCIAL)
+    // ==========================================
+    std::vector<typename Structure::value_type> extracted;
+    extracted.reserve(NUM_ELEMENTOS); 
+
+    // Extracción secuencial, sin hilos, asegura que vemos el orden real de la cola
+    while (!ds.empty()) {
+        auto val = ds.top();
+        ds.pop();
+        if (val != 0) {
+            extracted.push_back(val);
+        }
+    }
+
+    // ==========================================
+    // 5. CÁLCULO DE MÉTRICAS Y PRECISIÓN
+    // ==========================================
     int inversions = 0;
     for (size_t i = 0; i < extracted.size() - 1; ++i) {
-        // Si el actual es menor que el siguiente, no está perfectamente ordenado
         if (extracted[i] < extracted[i+1]) {
             inversions++;
         }
     }
-
-    // --- Calcular más métricas ---
 
     double suma_errores = 0.0;
     int n = (int)extracted.size();
@@ -167,12 +175,9 @@ void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::st
     if (n > 0) {
         // Error Medio
         for (int i = 0; i < n; ++i) {
-            // En orden descendente, la posición i (0-indexed) 
-            // debería contener el valor: NUM_ELEMENTOS - i
             int valor_teorico = NUM_ELEMENTOS - i;
             suma_errores += std::abs((int)extracted[i] - valor_teorico);
         }
-
         error_medio = suma_errores / n;
 
         // Desviación Típica
@@ -182,7 +187,6 @@ void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::st
             double error_i = std::abs((int)extracted[i] - valor_teorico);
             suma_cuadrados += std::pow(error_i - error_medio, 2);
         }
-
         desviacion = std::sqrt(suma_cuadrados / n);
     }
 

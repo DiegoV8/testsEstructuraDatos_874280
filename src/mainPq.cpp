@@ -46,11 +46,12 @@ public:
 };
 
 int main() {
-    const int N = 100000;
+    const int N = 10000;
     const int VISUALIZAR = 20;
-    const std::string output = "../results_/results_pq.csv";
+    const std::string output = "../results_/results_ext.csv";
     const std::string name = "priority_queue";
-    const int THREADS = 1;
+    //const int THREADS = 1;
+    const int THREADS = std::thread::hardware_concurrency();
 
     // Estructura de Datos
     HeapAdapter<int> heapTest;
