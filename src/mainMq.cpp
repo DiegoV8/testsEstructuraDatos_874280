@@ -15,8 +15,6 @@ class HeapAdapter {
 private:
     Multiqueue<T, Compare> mq;
 
-    // Usamos una función estática con thread_local.
-    // Así, CADA hilo del benchmark tiene su propio caché 'last_top' sin pisarse.
     static std::optional<T>& get_local_cache() {
         static thread_local std::optional<T> local_top = std::nullopt;
         return local_top;
@@ -50,18 +48,36 @@ public:
     bool empty() const { 
         return mq.empty(); 
     }
+
+    bool try_pop(T& result) {
+        // (Esto pasa si el benchmark llamó a top() pero aún no a pop())
+        if (get_local_cache()) {
+            result = get_local_cache().value();
+            get_local_cache().reset(); // Limpiamos el caché
+            return true;
+        }
+        
+        auto opt = mq.try_pop(); 
+        if (opt.has_value()) {
+            result = opt.value();
+            return true; // Extracción exitosa
+        }
+        
+        return false; // La cola está vacía
+    }
 };
 
 int main() {
     const int N = 5000000;
+    const int t = 4; // Numero por el que multiplicar el numero de threads para obtener el numero de colas
     const int VISUALIZAR = 20;
-    const std::string output = "../results_/results_mq8c.csv";
+    const std::string output = "../results_/results_new.csv";
     const std::string name = "multiqueue_n32c2";
     const int THREADS = std::thread::hardware_concurrency();
     //const int THREADS = 1;
 
     // Estructura de Datos
-    HeapAdapter<int, std::less<int>> heapTest(THREADS*4, 2, std::less<int>());
+    HeapAdapter<int, std::less<int>> heapTest(THREADS*t, 2, std::less<int>());
     run_benchmark(heapTest, N, VISUALIZAR, name, output, THREADS);
 
     return 0;

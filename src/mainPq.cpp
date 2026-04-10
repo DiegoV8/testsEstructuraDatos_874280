@@ -43,12 +43,27 @@ public:
         std::lock_guard<std::mutex> lock(mtx); // Bloqueamos antes de comprobar
         return pq.empty(); 
     }
+
+    bool try_pop(T& result) {
+        // Bloqueamos el mutex para que ningún otro hilo interfiera
+        std::lock_guard<std::mutex> lock(mtx); 
+        
+        if (pq.empty()) {
+            return false; // La cola está vacía, falló la extracción
+        }
+        
+        // Si hay elementos, leemos el tope y lo sacamos de forma segura
+        result = pq.top();
+        pq.pop();
+        
+        return true; // Extracción exitosa
+    }
 };
 
 int main() {
-    const int N = 10000;
+    const int N = 5000000;
     const int VISUALIZAR = 20;
-    const std::string output = "../results_/results_ext.csv";
+    const std::string output = "../results_/results_new.csv";
     const std::string name = "priority_queue";
     //const int THREADS = 1;
     const int THREADS = std::thread::hardware_concurrency();

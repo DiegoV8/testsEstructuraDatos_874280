@@ -7,10 +7,11 @@
 #include <string>
 #include <cmath>
 #include <fstream>
-#include <thread>
-#include <vector>
+#include <random> // Necesario para std::random_device y std::mt19937
+#include <numeric> // Necesario para std::iota
 #include <mutex>
 #include <atomic>
+#include <execution>
 #include "timer.hpp"
 
 /**
@@ -57,17 +58,16 @@ void print_Results(std::string structDat, int N, double t_ins, double t_ext, int
                 << t_ext << ";" 
                 << inversiones << ";"
                 << desp_medio << ";"
-                << desp_var << std::endl; // std::endl asegura el salto de línea para la próxima ejecución
+                << desp_var << std::endl;
 
-        archivo.close(); // Siempre cerrar el flujo al terminar
+        archivo.close(); 
         std::cout << "Datos guardados en: " << f_name << std::endl;
     }
 }
 
 /**
  * @brief Ejecuta pruebas de rendimiento sobre una estructura de datos.
- * @tparam T Tipo de dato contenido (int, float, etc.)
- * @tparam Structure Tipo de la estructura (debe tener push, pop, top, empty)
+ * @tparam Structure Tipo de la estructura (debe tener push, try_pop, top, pop, empty)
  * @tparam NUM_ELEMENTOS Número de datos a insertar.
  * @tparam VER_PRIMEROS_N Numero de elementos maximos a mostrar.
  */
@@ -84,12 +84,6 @@ void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::st
     std::mt19937 g(rd());
     std::shuffle(data.begin(), data.end(), g);
 
-    auto worker_insert = [&](int start, int end) {
-        for (int i = start; i < end; ++i) {
-            ds.push(data[i]);
-        }
-    };
-
     std::cout << "Iniciando pruebas..." << std::endl;
     std::cout << "Estructura de datos: " << structDat << std::endl;
     std::cout << "Numero de elementos: " << NUM_ELEMENTOS << std::endl;
@@ -99,48 +93,39 @@ void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::st
     // ==========================================
     // 1. TEST DE INSERCIÓN (RENDIMIENTO CONCURRENTE)
     // ==========================================
-    std::vector<std::thread> threads;
-    int chunk = NUM_ELEMENTOS / NUM_THREADS;
-
+    std::cout << "Iniciando inserción concurrente..." << std::endl;
     timer.start();
-    for (int i = 0; i < NUM_THREADS; ++i) {
-        threads.emplace_back(worker_insert, i * chunk, (i == NUM_THREADS - 1) ? NUM_ELEMENTOS : (i + 1) * chunk);
-    }
-    for (auto& t : threads) t.join();
+    
+    // std::for_each con política paralela reparte el trabajo automáticamente
+    std::for_each(std::execution::par, data.begin(), data.end(), [&](int val) {
+        ds.push(val);
+    });
+    
     double insert_time = timer.stop();
 
     // ==========================================
     // 2. TEST DE EXTRACCIÓN (RENDIMIENTO CONCURRENTE)
     // ==========================================
-    threads.clear();
-    
-    // Aquí solo sacamos los elementos lo más rápido posible para medir tiempo
-    auto worker_extract_time = [&]() {
-        while (true) {
-            if (ds.empty()) break; 
-            
-            // Hacemos el top y pop, pero desechamos el valor
-            ds.top();
-            ds.pop();
-        }
-    };
-
+    std::cout << "Iniciando extracción concurrente..." << std::endl;
     timer.start();
-    for (int i = 0; i < NUM_THREADS; ++i) {
-        threads.emplace_back(worker_extract_time);
-    }
-    for (auto& t : threads) t.join();
+    
+    std::for_each(std::execution::par, data.begin(), data.end(), [&](int /*dummy*/) {
+        int extraido;
+        while (!ds.try_pop(extraido)) {
+            // Reintenta hasta que logre sacar un valor
+        }
+    });
+    
     double extract_time = timer.stop();
 
     // ==========================================
     // 3. RELLENO DE DATOS (CONCURRENTE)
     // ==========================================
-    // Volvemos a meter los datos concurrentemente para la prueba de precisión
-    threads.clear();
-    for (int i = 0; i < NUM_THREADS; ++i) {
-        threads.emplace_back(worker_insert, i * chunk, (i == NUM_THREADS - 1) ? NUM_ELEMENTOS : (i + 1) * chunk);
-    }
-    for (auto& t : threads) t.join();
+    // Volvemos a meter los datos concurrentemente usando la misma política paralela
+    std::cout << "Rellenando estructura para test de precisión..." << std::endl;
+    std::for_each(std::execution::par, data.begin(), data.end(), [&](int val) {
+        ds.push(val);
+    });
 
     // ==========================================
     // 4. TEST DE PRECISIÓN (EXTRACCIÓN SECUENCIAL)
