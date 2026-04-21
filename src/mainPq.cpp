@@ -7,6 +7,7 @@
 #include <random>
 #include <string>
 #include <mutex>
+#include <optional>
 #include "benchmark.hpp"
 
 // Adaptador para la Estructura de Datos que sea
@@ -44,29 +45,32 @@ public:
         return pq.empty(); 
     }
 
-    bool try_pop(T& result) {
+    std::optional<T> try_pop() {
         // Bloqueamos el mutex para que ningún otro hilo interfiera
         std::lock_guard<std::mutex> lock(mtx); 
         
-        if (pq.empty()) {
-            return false; // La cola está vacía, falló la extracción
+        if (!pq.empty()) {
+            auto val = pq.top();
+            pq.pop();
+            return val;
         }
-        
-        // Si hay elementos, leemos el tope y lo sacamos de forma segura
-        result = pq.top();
-        pq.pop();
-        
-        return true; // Extracción exitosa
+        return std::nullopt;
     }
 };
 
-int main() {
-    const int N = 5000000;
-    const int VISUALIZAR = 20;
-    const std::string output = "../results_/results_new.csv";
-    const std::string name = "priority_queue";
-    //const int THREADS = 1;
-    const int THREADS = std::thread::hardware_concurrency();
+int main(int argc, char *argv[]) { // N, VISUALIZAR, nombre, THREADS
+
+    if (argc != 5) {
+        std::cout << "Numero incorrecto de parametros." << std::endl;
+        return 1;
+    }
+
+    const int N = atoi(argv[1]);
+    const int VISUALIZAR = atoi(argv[2]);
+    const std::string name = argv[3];
+    const int THREADS = atoi(argv[4]);
+
+    const std::string output = "results_/results.csv";
 
     // Estructura de Datos
     HeapAdapter<int> heapTest;

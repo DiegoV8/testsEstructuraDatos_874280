@@ -109,13 +109,13 @@ void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::st
     std::cout << "Iniciando extracción concurrente..." << std::endl;
     timer.start();
     
-    std::for_each(std::execution::par, data.begin(), data.end(), [&](int /*dummy*/) {
-        int extraido;
-        while (!ds.try_pop(extraido)) {
-            // Reintenta hasta que logre sacar un valor
+    std::for_each(std::execution::par, data.begin(), data.end(), [&](int) {
+        while (true) {
+            auto res = ds.try_pop();
+            if (!res.has_value()) break;
         }
     });
-    
+
     double extract_time = timer.stop();
 
     // ==========================================
@@ -130,21 +130,22 @@ void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::st
     // ==========================================
     // 4. TEST DE PRECISIÓN (EXTRACCIÓN SECUENCIAL)
     // ==========================================
+    std::cout << "Test de Precisión..." << std::endl;
     std::vector<typename Structure::value_type> extracted;
     extracted.reserve(NUM_ELEMENTOS); 
 
     // Extracción secuencial, sin hilos, asegura que vemos el orden real de la cola
-    while (!ds.empty()) {
-        auto val = ds.top();
-        ds.pop();
-        if (val != 0) {
-            extracted.push_back(val);
-        }
+    while (true) {
+        auto val = ds.try_pop();
+        if (!val) break;
+
+        extracted.push_back(*val);
     }
 
     // ==========================================
     // 5. CÁLCULO DE MÉTRICAS Y PRECISIÓN
     // ==========================================
+    std::cout << "Calculando Métricas..." << std::endl;
     int inversions = 0;
     for (size_t i = 0; i < extracted.size() - 1; ++i) {
         if (extracted[i] < extracted[i+1]) {

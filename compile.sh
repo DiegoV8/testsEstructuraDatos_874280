@@ -2,7 +2,7 @@
 
 CXX=g++
 # Dejamos CXXFLAGS solo para opciones de compilación
-CXXFLAGS="-Wall -Wextra -std=c++17 -O3"
+CXXFLAGS="-Wall -Wextra -std=c++20 -O3"
 # Creamos LDFLAGS para las librerías
 LDFLAGS="-ltbb" 
 
