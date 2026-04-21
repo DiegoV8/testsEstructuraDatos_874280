@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) { // N, VISUALIZAR, nombre, THREADS
     const std::string name = argv[3];
     const int THREADS = atoi(argv[4]);
 
-    const std::string output = "results_/results_test.csv";
+    const std::string output = "results_/results.csv";
 
     // Estructura de Datos
     HeapAdapterSl<int, std::greater<int>> heapTest{std::greater<int>(), 2*THREADS};
