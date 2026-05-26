@@ -10,30 +10,30 @@
 #include <optional>
 #include "benchmark.hpp"
 
-// Adaptador para la Estructura de Datos que sea
+// Adaptador para la Priorityqueue.
 template <typename T>
 class HeapAdapter {
 private:
     std::priority_queue<T> pq;
-    mutable std::mutex mtx; // Mutex global para proteger la cola entera
+    mutable std::mutex mtx;
 
 public:
     using value_type = T;
 
     void push(T val) { 
-        std::lock_guard<std::mutex> lock(mtx); // Bloqueamos antes de insertar
+        std::lock_guard<std::mutex> lock(mtx);
         pq.push(val); 
     }
 
     void pop() {
-        std::lock_guard<std::mutex> lock(mtx); // Bloqueamos antes de borrar
+        std::lock_guard<std::mutex> lock(mtx);
         if (!pq.empty()) {
             pq.pop();
         }
     }
 
     T top() {
-        std::lock_guard<std::mutex> lock(mtx); // Bloqueamos antes de leer
+        std::lock_guard<std::mutex> lock(mtx);
         if (!pq.empty()) {
             return pq.top();
         }
@@ -41,12 +41,11 @@ public:
     }
 
     bool empty() const { 
-        std::lock_guard<std::mutex> lock(mtx); // Bloqueamos antes de comprobar
+        std::lock_guard<std::mutex> lock(mtx);
         return pq.empty(); 
     }
 
     std::optional<T> try_pop() {
-        // Bloqueamos el mutex para que ningún otro hilo interfiera
         std::lock_guard<std::mutex> lock(mtx); 
         
         if (!pq.empty()) {
@@ -58,7 +57,7 @@ public:
     }
 };
 
-int main(int argc, char *argv[]) { // N, VISUALIZAR, nombre, THREADS
+int main(int argc, char *argv[]) {
 
     if (argc != 5) {
         std::cout << "Numero incorrecto de parametros." << std::endl;
@@ -72,7 +71,6 @@ int main(int argc, char *argv[]) { // N, VISUALIZAR, nombre, THREADS
 
     const std::string output = "results_/results.csv";
 
-    // Estructura de Datos
     HeapAdapter<int> heapTest;
     run_benchmark(heapTest, N, VISUALIZAR, name, output, THREADS);
 

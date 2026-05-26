@@ -9,7 +9,7 @@
 #include "benchmark.hpp"
 #include "../external/relaxedPriorityQueues_874280/src/multiqueue/multiqueue.hpp"
 
-// Adaptador para la Estructura de Datos que sea
+// Adaptador para la Multiqueue.
 template <typename T, typename Compare = std::less<T>>
 class HeapAdapterMq {
 private:
@@ -34,7 +34,7 @@ public:
     }
 };
 
-int main(int argc, char *argv[]) { // N, t, VISUALIZAR, nombre, THREADS
+int main(int argc, char *argv[]) {
 
     if (argc != 6) {
         std::cout << "Numero incorrecto de parametros." << std::endl;
@@ -42,14 +42,13 @@ int main(int argc, char *argv[]) { // N, t, VISUALIZAR, nombre, THREADS
     }
 
     const int N = atoi(argv[1]);
-    const int t = atoi(argv[2]); // Numero por el que multiplicar el numero de threads para obtener el numero de colas
+    const int t = atoi(argv[2]);
     const int VISUALIZAR = atoi(argv[3]);
     const std::string name = argv[4];
     const int THREADS = atoi(argv[5]);
 
     const std::string output = "results_/results.csv";
 
-    // Estructura de Datos
     HeapAdapterMq<int, std::less<int>> heapTest(THREADS*t, 2, std::less<int>());
     run_benchmark(heapTest, N, VISUALIZAR, name, output, THREADS);
 

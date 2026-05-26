@@ -7,8 +7,8 @@
 #include <string>
 #include <cmath>
 #include <fstream>
-#include <random> // Necesario para std::random_device y std::mt19937
-#include <numeric> // Necesario para std::iota
+#include <random>
+#include <numeric>
 #include <mutex>
 #include <atomic>
 #include <execution>
@@ -16,22 +16,21 @@
 
 /**
  * @brief Escribe los resultados de benchmark en el archivo csv proporcionado.
- * @tparam structDat Nombre de la estructura de datos probada.
- * @tparam N Numero de datos con los que se ha realizado el test.
- * @tparam t_ins Tiempo de inserción obtenido en el test (Total, no por elemento)
- * @tparam t_ext Tiempo de extracción obtenido en el test (Total, no por elemento)
- * @tparam inversiones Cantidad de elementos mal posicionados.
- * @tparam desp_medio Desplazamiento promedio de los elementos respecto a su posición en la lista ordenada.
- * @tparam desp_var Variación de los elementos respecto a desp_medio.
- * @tparam f_name Nombre del fichero de salida
+ * @param structDat Nombre de la estructura de datos probada.
+ * @param N Número de datos con los que se ha realizado el test.
+ * @param t_ins Tiempo de inserción obtenido en el test (Total, no por elemento).
+ * @param t_ext Tiempo de extracción obtenido en el test (Total, no por elemento).
+ * @param inversiones Cantidad de elementos mal posicionados.
+ * @param desp_medio Desplazamiento promedio de los elementos respecto a su posición en la lista ordenada.
+ * @param desp_var Variación de los elementos respecto a desp_medio.
+ * @param f_name Nombre del fichero de salida.
+ * @param nThreads Número de hilos de concurrencia que ha empleado el test.
  */
 void print_Results(std::string structDat, int N, double t_ins, double t_ext, int inversiones, double desp_medio, double desp_var, std::string f_name, int nThreads){
     
     std::ifstream check_file(f_name);
     bool escribir_cabecera = false;
 
-    // Si no se puede abrir, es que no existe. 
-    // Si se abre, comprobamos si esta vacio
     if (!check_file.is_open() || check_file.peek() == std::ifstream::traits_type::eof()) {
         escribir_cabecera = true;
     }
@@ -67,19 +66,20 @@ void print_Results(std::string structDat, int N, double t_ins, double t_ext, int
 
 /**
  * @brief Ejecuta pruebas de rendimiento sobre una estructura de datos.
- * @tparam Structure Tipo de la estructura (debe tener push, try_pop, top, pop, empty)
- * @tparam NUM_ELEMENTOS Número de datos a insertar.
- * @tparam VER_PRIMEROS_N Numero de elementos maximos a mostrar.
+ * @param ds Tipo de la estructura (debe tener push, try_pop, top, pop, empty).
+ * @param NUM_ELEMENTOS Número de datos a insertar.
+ * @param VER_PRIMEROS_N Número de elementos maximos a mostrar.
+ * @param structDat Nombre de la estructura de datos a usar.
+ * @param n_fich Nombre del fichero csv de output.
+ * @param NUM_THREADS Numero de hilos de concurrencia a emplear.
  */
 template <class Structure>
 void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::string structDat, std::string n_fich, int NUM_THREADS) {
     Timer timer;
     std::vector<int> data(NUM_ELEMENTOS);
 
-    // Asigna los valores de 1-NUM_ELEMENTOS
     std::iota(data.begin(), data.end(), 1);
 
-    // Barajamos el orden de la entrada
     std::random_device rd;
     std::mt19937 g(rd());
     std::shuffle(data.begin(), data.end(), g);
@@ -90,22 +90,15 @@ void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::st
     std::cout << "Elementos a visualizar: " << VER_PRIMEROS_N << std::endl;
     std::cout << "Fichero de salida: " << n_fich << std::endl;
 
-    // ==========================================
-    // 1. TEST DE INSERCIÓN (RENDIMIENTO CONCURRENTE)
-    // ==========================================
     std::cout << "Iniciando inserción concurrente..." << std::endl;
     timer.start();
     
-    // std::for_each con política paralela reparte el trabajo automáticamente
     std::for_each(std::execution::par, data.begin(), data.end(), [&](int val) {
         ds.push(val);
     });
     
     double insert_time = timer.stop();
 
-    // ==========================================
-    // 2. TEST DE EXTRACCIÓN (RENDIMIENTO CONCURRENTE)
-    // ==========================================
     std::cout << "Iniciando extracción concurrente..." << std::endl;
     timer.start();
     
@@ -118,23 +111,15 @@ void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::st
 
     double extract_time = timer.stop();
 
-    // ==========================================
-    // 3. RELLENO DE DATOS (CONCURRENTE)
-    // ==========================================
-    // Volvemos a meter los datos concurrentemente usando la misma política paralela
     std::cout << "Rellenando estructura para test de precisión..." << std::endl;
     std::for_each(std::execution::par, data.begin(), data.end(), [&](int val) {
         ds.push(val);
     });
 
-    // ==========================================
-    // 4. TEST DE PRECISIÓN (EXTRACCIÓN SECUENCIAL)
-    // ==========================================
     std::cout << "Test de Precisión..." << std::endl;
     std::vector<typename Structure::value_type> extracted;
     extracted.reserve(NUM_ELEMENTOS); 
 
-    // Extracción secuencial, sin hilos, asegura que vemos el orden real de la cola
     while (true) {
         auto val = ds.try_pop();
         if (!val) break;
@@ -142,9 +127,6 @@ void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::st
         extracted.push_back(*val);
     }
 
-    // ==========================================
-    // 5. CÁLCULO DE MÉTRICAS Y PRECISIÓN
-    // ==========================================
     std::cout << "Calculando Métricas..." << std::endl;
     int inversions = 0;
     for (size_t i = 0; i < extracted.size() - 1; ++i) {
@@ -159,14 +141,12 @@ void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::st
     double desviacion = -1;
 
     if (n > 0) {
-        // Error Medio
         for (int i = 0; i < n; ++i) {
             int valor_teorico = NUM_ELEMENTOS - i;
             suma_errores += std::abs((int)extracted[i] - valor_teorico);
         }
         error_medio = suma_errores / n;
 
-        // Desviación Típica
         double suma_cuadrados = 0.0;
         for (int i = 0; i < n; ++i) {
             int valor_teorico = NUM_ELEMENTOS - i;
@@ -176,7 +156,6 @@ void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::st
         desviacion = std::sqrt(suma_cuadrados / n);
     }
 
-    // --- SALIDA DE DATOS ---
     std::cout << "\n>>> BENCHMARK REPORT <<<" << std::endl;
     std::cout << "Tiempo Inserción:  " << insert_time << " ms" << std::endl;
     std::cout << "Tiempo Extracción: " << extract_time << " ms" << std::endl;

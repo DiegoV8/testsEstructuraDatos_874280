@@ -9,7 +9,7 @@ private:
 
 public:
     void start();
-    double stop(); // ms
+    double stop();
 };
 
 #endif

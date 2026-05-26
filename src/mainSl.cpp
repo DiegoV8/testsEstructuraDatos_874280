@@ -9,7 +9,7 @@
 #include "benchmark.hpp"
 #include "../external/relaxedPriorityQueues_874280/src/skiplist/skiplist.hpp"
 
-// Adaptador para la Estructura de Datos que sea
+// Adaptador para la Skiplist.
 template <typename T, typename Compare = std::greater<T>>
 class HeapAdapterSl {
 private:
@@ -38,7 +38,7 @@ public:
     }
 };
 
-int main(int argc, char *argv[]) { // N, VISUALIZAR, nombre, THREADS
+int main(int argc, char *argv[]) {
 
     if (argc != 5) {
         std::cout << "Numero incorrecto de parametros." << std::endl;
@@ -52,8 +52,7 @@ int main(int argc, char *argv[]) { // N, VISUALIZAR, nombre, THREADS
 
     const std::string output = "results_/results.csv";
 
-    // Estructura de Datos
-    HeapAdapterSl<int, std::greater<int>> heapTest{std::greater<int>(), 2*THREADS};
+    HeapAdapterSl<int, std::greater<int>> heapTest{std::greater<int>(), 4*THREADS};
     run_benchmark(heapTest, N, VISUALIZAR, name, output, THREADS);
 
     return 0;

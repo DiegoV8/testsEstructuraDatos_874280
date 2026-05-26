@@ -1,14 +1,8 @@
 #!/bin/bash
 
 CXX=g++
-# Dejamos CXXFLAGS solo para opciones de compilación
 CXXFLAGS="-Wall -Wextra -std=c++20 -O3"
-# Creamos LDFLAGS para las librerías
 LDFLAGS="-ltbb" 
-
-# Si quieres usar el thread sanitizer en el futuro, descomenta estas dos:
-# CXXFLAGS="-Wall -Wextra -std=c++17 -O3 -fsanitize=thread -g"
-# LDFLAGS="-ltbb -fsanitize=thread"
 
 BIN_DIR="bin"
 LOG_ERR="errores.txt"
