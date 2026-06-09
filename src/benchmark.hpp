@@ -11,7 +11,7 @@
 #include <numeric>
 #include <mutex>
 #include <atomic>
-#include <execution>
+#include <omp.h> // Añadida la librería OpenMP (reemplaza a <execution>)
 #include "timer.hpp"
 
 /**
@@ -84,37 +84,45 @@ void run_benchmark(Structure& ds, int NUM_ELEMENTOS, int VER_PRIMEROS_N, std::st
     std::mt19937 g(rd());
     std::shuffle(data.begin(), data.end(), g);
 
+    // Configuramos OpenMP para usar el número exacto de hilos solicitados
+    omp_set_num_threads(NUM_THREADS);
+
     std::cout << "Iniciando pruebas..." << std::endl;
     std::cout << "Estructura de datos: " << structDat << std::endl;
     std::cout << "Numero de elementos: " << NUM_ELEMENTOS << std::endl;
     std::cout << "Elementos a visualizar: " << VER_PRIMEROS_N << std::endl;
     std::cout << "Fichero de salida: " << n_fich << std::endl;
+    std::cout << "Hilos configurados (OpenMP): " << NUM_THREADS << std::endl;
 
     std::cout << "Iniciando inserción concurrente..." << std::endl;
     timer.start();
     
-    std::for_each(std::execution::par, data.begin(), data.end(), [&](int val) {
-        ds.push(val);
-    });
+    #pragma omp parallel for
+    for (int i = 0; i < NUM_ELEMENTOS; ++i) {
+        ds.push(data[i]);
+    }
     
     double insert_time = timer.stop();
 
     std::cout << "Iniciando extracción concurrente..." << std::endl;
     timer.start();
     
-    std::for_each(std::execution::par, data.begin(), data.end(), [&](int) {
-        while (true) {
+    // Todos los hilos entran en esta región y compiten por vaciar la estructura
+    #pragma omp parallel
+    {
+        while (!ds.empty()) {
             auto res = ds.try_pop();
-            if (!res.has_value()) break;
         }
-    });
+    }
 
     double extract_time = timer.stop();
 
     std::cout << "Rellenando estructura para test de precisión..." << std::endl;
-    std::for_each(std::execution::par, data.begin(), data.end(), [&](int val) {
-        ds.push(val);
-    });
+    
+    #pragma omp parallel for
+    for (int i = 0; i < NUM_ELEMENTOS; ++i) {
+        ds.push(data[i]);
+    }
 
     std::cout << "Test de Precisión..." << std::endl;
     std::vector<typename Structure::value_type> extracted;

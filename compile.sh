@@ -1,7 +1,7 @@
 #!/bin/bash
 
 CXX=g++
-CXXFLAGS="-Wall -Wextra -std=c++20 -O3"
+CXXFLAGS="-Wall -Wextra -std=c++20 -fopenmp -O3"
 LDFLAGS="-ltbb" 
 
 BIN_DIR="bin"
@@ -27,7 +27,6 @@ for src in $SOURCES; do
     echo -n "Compilando $filename... "
 
     {
-        # ¡AQUÍ ESTÁ LA CLAVE! $LDFLAGS va al final del todo
         $CXX $CXXFLAGS "$src" src/timer.cpp -o "$BIN_DIR/$output_name" $LDFLAGS
     } 2>> $LOG_ERR
     

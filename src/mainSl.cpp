@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
 
     const std::string output = "results_/results.csv";
 
-    HeapAdapterSl<int, std::greater<int>> heapTest{std::greater<int>(), 4*THREADS};
+    HeapAdapterSl<int, std::greater<int>> heapTest{std::greater<int>(), 2*THREADS};
     run_benchmark(heapTest, N, VISUALIZAR, name, output, THREADS);
 
     return 0;

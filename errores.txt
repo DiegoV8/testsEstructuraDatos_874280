@@ -1,0 +1,18 @@
+In file included from src/mainMq.cpp:9:
+src/benchmark.hpp: In instantiation of ‘void run_benchmark(Structure&, int, int, std::string, std::string, int) [with Structure = HeapAdapterMq<int, std::less<int> >; std::string = std::__cxx11::basic_string<char>]’:
+src/mainMq.cpp:53:18:   required from here
+src/benchmark.hpp:114:18: warning: variable ‘res’ set but not used [-Wunused-but-set-variable]
+  114 |             auto res = ds.try_pop();
+      |                  ^~~
+In file included from src/mainPq.cpp:11:
+src/benchmark.hpp: In instantiation of ‘void run_benchmark(Structure&, int, int, std::string, std::string, int) [with Structure = HeapAdapter<int>; std::string = std::__cxx11::basic_string<char>]’:
+src/mainPq.cpp:75:18:   required from here
+src/benchmark.hpp:114:18: warning: variable ‘res’ set but not used [-Wunused-but-set-variable]
+  114 |             auto res = ds.try_pop();
+      |                  ^~~
+In file included from src/mainSl.cpp:9:
+src/benchmark.hpp: In instantiation of ‘void run_benchmark(Structure&, int, int, std::string, std::string, int) [with Structure = HeapAdapterSl<int, std::greater<int> >; std::string = std::__cxx11::basic_string<char>]’:
+src/mainSl.cpp:56:18:   required from here
+src/benchmark.hpp:114:18: warning: variable ‘res’ set but not used [-Wunused-but-set-variable]
+  114 |             auto res = ds.try_pop();
+      |                  ^~~
